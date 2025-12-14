@@ -6,8 +6,14 @@ from pubsub import pub
 from datetime import datetime
 import os
 from pprint import pprint
-import json
+import logging
 
+
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO, # Set the minimum logging level to capture
+    format='%(asctime)s - %(levelname)s - %(message)s' # Define the message format
+)
 # Configuration
 HOST_IP = '192.168.10.185'  # Replace with your Meshtastic device's IP or hostname (e.g., 'meshtastic.local')
 
@@ -36,23 +42,19 @@ def onReceive(packet, interface):
         now = datetime.now()
         f_time = now.strftime("%H:%M:%S")
         sender = str(hex(sender_from))[-4:]
-        print(f"{f_time} {sender}: {message}")
-        # print(packet)
+        log_msg = f"{f_time} {sender}: {message}"
+        logging.info(log_msg)
 
-        if '/ping' in message:
+        if '/ping' in message.lower():
             answer = f"@{sender} pong!"
-            print(f'{f_time} Send answer: ', answer)
-            # with open('packet.log', "a", encoding='utf-8') as out:
-            #     json.dump(packet, out, indent=4)
-            print(packet)
+            logging.info(f'{f_time} Send answer: {answer}')
             interface.sendText(answer)
+
         elif '/help' in message:
             prefix = f'{f_time} @{sender} '
-            print('answer /help', prefix)
+            logging.info(f'answer /help: {prefix}')
             cmd_help(interface=interface, prefix=prefix)
-            # interface.sendText(answer)
 
-        # Add your bot logic here (e.g., respond to specific commands)
 
 def onConnection(interface, topic=pub.AUTO_TOPIC):
     """
