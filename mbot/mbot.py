@@ -58,7 +58,7 @@ def onReceive(packet, interface):
                 print(hop_limit, "-",  hop_start)
                 hops = ''
 
-            answer = f"@{sender} ok!" + hops
+            answer = f"{sender}, {hops} до Щукино"
             # print(answer)
             logging.info(f'{f_time} Send answer: {answer} {hops}')
             
