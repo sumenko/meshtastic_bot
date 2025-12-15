@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 from pprint import pprint
 import logging
-
+from google.protobuf.message import DecodeError
 
 logging.basicConfig(
     filename='app.log',
@@ -32,28 +32,46 @@ def onReceive(packet, interface):
     # pprint(packet)
     # Check if the packet contains a text message
     if 'decoded' in packet and 'text' in packet['decoded']:
-        message = packet['decoded']['text']
-        sender_id = packet.get('fromId', 'Unknown')
+        message = packet['decoded']['text'].lower()
+        # sender_id = packet.get('fromId', 'Unknown')
         sender_from = packet.get('from', 'Unknown')
-        rx_time = packet.get('rx_time', 'rx_time')
-        # rx_snr = packet.get('rx_snr', 'rx_snr')
-        # rx_rssi = packet.get('rx_rssi', 'rx_rssi')
-        
+        hop_start = packet.get('hopStart', 'hopStart')
+        hop_limit = packet.get('hopLimit', 'hopLimit ')
+
+
         now = datetime.now()
         f_time = now.strftime("%H:%M:%S")
         sender = str(hex(sender_from))[-4:]
         log_msg = f"{f_time} {sender}: {message}"
         logging.info(log_msg)
 
-        if '/ping' in message.lower():
-            answer = f"@{sender} pong!"
-            logging.info(f'{f_time} Send answer: {answer}')
+        if message == 'hops?' or 'ping' in message or 'test' in message or message == 'ack':
+            print('Got ', message)
+            hops = ''
+            try:
+                hops_int = hop_limit - hop_start
+                if hops_int > 0:
+                    hops = ' hops ' + str(hops_int)
+                else:
+                    hops = ' Direct'
+            except TypeError:
+                print(hop_limit, "-",  hop_start)
+                hops = ''
+
+            answer = f"@{sender} ok!" + hops
+            # print(answer)
+            logging.info(f'{f_time} Send answer: {answer} {hops}')
+            
             interface.sendText(answer)
 
         elif '/help' in message:
             prefix = f'{f_time} @{sender} '
             logging.info(f'answer /help: {prefix}')
             cmd_help(interface=interface, prefix=prefix)
+        elif 'ping' in message or 'test' in message:
+            with open('packets\\' + f'{sender}.proto', "a") as outp:
+                outp.write(repr(packet))
+
 
 
 def onConnection(interface, topic=pub.AUTO_TOPIC):
