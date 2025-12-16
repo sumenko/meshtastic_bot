@@ -57,15 +57,15 @@ def onReceive(packet, interface):
             print('Got', message)
             hops = ''
             try:
-                hops_int = int(hop_limit) - int(hop_start)
+                hops_int = int(hop_start) - int(hop_limit)
                 if hops_int > 0:
-                    hops = ' hops ' + str(hops_int)
-                else:
-                    hops = ' директ'
+                    hops = 'хопов ' + str(hops_int)
+                elif hops_int == 0:
+                    hops = 'директ'
+
             except TypeError as err:
                 err_msg = f'Error: {err} {hop_limit} - {hop_start}'
                 logging.error(err_msg)
-                hops = ''
                 
             finally:
                 if hops:
