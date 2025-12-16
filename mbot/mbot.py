@@ -1,14 +1,11 @@
 # tcp_example.py
-import re
 import time
 import meshtastic
 import meshtastic.tcp_interface
 from pubsub import pub
 from datetime import datetime
 import os
-from pprint import pprint
 import logging
-from google.protobuf.message import DecodeError
 import sys
 
 file_handler = logging.FileHandler('app.log', mode='a', encoding='utf-8') 
@@ -133,9 +130,6 @@ def main():
 
     except Exception as e:
         logging.error(f"Error connecting or running the bot: {e}")
-    except DecodeError as a:
-        logging.error(f"Error: {e}")
-
 
     finally:
         # Ensure the interface is closed cleanly if an error occurs or the loop breaks
