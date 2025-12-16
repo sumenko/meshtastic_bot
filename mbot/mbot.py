@@ -64,7 +64,7 @@ def onReceive(packet, interface):
                     hops = 'директ'
 
             except TypeError as err:
-                err_msg = f'Error: {err} {hop_limit} - {hop_start}'
+                err_msg = f'Error: {err} {hop_start} - {hop_limit}'
                 logging.error(err_msg)
                 
             finally:
