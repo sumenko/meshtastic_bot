@@ -1,4 +1,5 @@
 # tcp_example.py
+import re
 import time
 import meshtastic
 import meshtastic.tcp_interface
@@ -8,11 +9,18 @@ import os
 from pprint import pprint
 import logging
 from google.protobuf.message import DecodeError
+import sys
+
+file_handler = logging.FileHandler('app.log', mode='a', encoding='utf-8') 
+stream_handler = logging.StreamHandler(sys.stdout) 
+date_format = '%Y-%m-%d %H:%M:%S'
 
 logging.basicConfig(
-    filename='app.log',
+    handlers=[file_handler, stream_handler],
     level=logging.INFO, # Set the minimum logging level to capture
-    format='%(asctime)s - %(levelname)s - %(message)s' # Define the message format
+    datefmt=date_format,
+    format='%(asctime)s %(levelname)s\t%(message)s', # Define the message format
+    encoding='utf-8'
 )
 # Configuration
 HOST_IP = '192.168.10.185'  # Replace with your Meshtastic device's IP or hostname (e.g., 'meshtastic.local')
@@ -32,47 +40,52 @@ def onReceive(packet, interface):
     # pprint(packet)
     # Check if the packet contains a text message
     if 'decoded' in packet and 'text' in packet['decoded']:
-        message = packet['decoded']['text'].lower()
+        message = packet['decoded']['text']
+        
         # sender_id = packet.get('fromId', 'Unknown')
         sender_from = packet.get('from', 'Unknown')
-        hop_start = packet.get('hopStart', 'hopStart')
-        hop_limit = packet.get('hopLimit', 'hopLimit ')
-
+        hop_start = packet.get('hopStart', 7)
+        hop_limit = packet.get('hopLimit', 0)
 
         now = datetime.now()
         f_time = now.strftime("%H:%M:%S")
         sender = str(hex(sender_from))[-4:]
-        log_msg = f"{f_time} {sender}: {message}"
-        logging.info(log_msg)
+        log_msg = f"{sender}: {message}"
 
-        if message == 'hops?' or 'ping' in message or 'test' in message or message == 'ack':
-            print('Got ', message)
+        logging.info(log_msg)
+        ping_keys = ('hops?', 'ping', 'test', 'ack','пинг')
+        ping_factor = max([a in message.lower() for a in ping_keys])
+        
+        if ping_factor:
+            print('Got', message)
             hops = ''
             try:
-                hops_int = hop_limit - hop_start
+                hops_int = int(hop_limit) - int(hop_start)
                 if hops_int > 0:
                     hops = ' hops ' + str(hops_int)
                 else:
-                    hops = ' Direct'
-            except TypeError:
-                print(hop_limit, "-",  hop_start)
+                    hops = ' директ'
+            except TypeError as err:
+                err_msg = f'Error: {err} {hop_limit} - {hop_start}'
+                logging.error(err_msg)
                 hops = ''
+                
+            finally:
+                if hops:
+                    answer = f"{sender}, {hops} до Щукино"
+                else:
+                    answer = f"{sender}, принял, Щукино"
+                
+                logging.info(f'Send answer: {answer}')
+                interface.sendText(answer)
 
-            answer = f"{sender}, {hops} до Щукино"
-            # print(answer)
-            logging.info(f'{f_time} Send answer: {answer} {hops}')
-            
-            interface.sendText(answer)
+            with open(os.path.join('packets', f'{sender}.proto'), "a+") as outp:
+                outp.write(repr(packet))
 
         elif '/help' in message:
             prefix = f'{f_time} @{sender} '
             logging.info(f'answer /help: {prefix}')
             cmd_help(interface=interface, prefix=prefix)
-        elif 'ping' in message or 'test' in message:
-            with open('packets\\' + f'{sender}.proto', "a") as outp:
-                outp.write(repr(packet))
-
-
 
 def onConnection(interface, topic=pub.AUTO_TOPIC):
     """
@@ -119,7 +132,11 @@ def main():
             time.sleep(1)
 
     except Exception as e:
-        print(f"Error connecting or running the bot: {e}")
+        logging.error(f"Error connecting or running the bot: {e}")
+    except DecodeError as a:
+        logging.error(f"Error: {e}")
+
+
     finally:
         # Ensure the interface is closed cleanly if an error occurs or the loop breaks
         if 'interface' in locals() and interface:
