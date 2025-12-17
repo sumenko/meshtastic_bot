@@ -11,6 +11,8 @@ import sys
 file_handler = logging.FileHandler('app.log', mode='a', encoding='utf-8') 
 stream_handler = logging.StreamHandler(sys.stdout) 
 date_format = '%Y-%m-%d %H:%M:%S'
+black_list = {}
+msg_counter = {}
 
 logging.basicConfig(
     handlers=[file_handler, stream_handler],
@@ -21,6 +23,13 @@ logging.basicConfig(
 )
 # Configuration
 HOST_IP = '192.168.10.185'  # Replace with your Meshtastic device's IP or hostname (e.g., 'meshtastic.local')
+
+def count_messages(sender):
+    try:
+        msg_counter[sender] += 1
+    except KeyError:
+        msg_counter[sender] = 1
+    return msg_counter[sender]
 
 def clear_console():
     """Clears the console screen based on the operating system."""
@@ -47,33 +56,45 @@ def onReceive(packet, interface):
         now = datetime.now()
         f_time = now.strftime("%H:%M:%S")
         sender = str(hex(sender_from))[-4:]
-        log_msg = f"{sender}: {message}"
+        c = count_messages(sender)
+        log_msg = f"[{c:3}] {sender}: {message}"
 
         logging.info(log_msg)
         ping_keys = ('hops?', 'ping', 'test', 'тест', 'ack','пинг')
         ping_factor = max([a in message.lower() for a in ping_keys])
         
+
         if ping_factor:
-            print('Got', message)
+
+            try:
+                black_list[sender] -= 1
+                if black_list[sender] < 1:
+                    logging.info(f'{sender} blocked')
+                    return
+
+            except KeyError:
+                black_list[sender] = 4
+
             hops = ''
             try:
                 hops_int = int(hop_start) - int(hop_limit)
                 if hops_int > 0:
-                    hops = 'хопов ' + str(hops_int)
+                    hops = str(hops_int)
                 elif hops_int == 0:
-                    hops = 'директ'
+                    hops = 'direct'
 
             except TypeError as err:
                 err_msg = f'Error: {err} {hop_start} - {hop_limit}'
                 logging.error(err_msg)
-                
+
             finally:
                 if hops:
-                    answer = f"{sender}, {hops} до Щукино"
+                    answer = f"pong! {sender}: {hops}"
                 else:
-                    answer = f"{sender}, принял, Щукино"
+                    answer = f"pong! {sender}"
+
                 
-                logging.info(f'Send answer: {answer}')
+                logging.info(f'>>> {answer} >>> [{black_list[sender]}]')
                 interface.sendText(answer)
 
             with open(os.path.join('packets', f'{sender}.proto'), "a+") as outp:
