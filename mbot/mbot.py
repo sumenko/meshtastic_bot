@@ -50,7 +50,7 @@ def onReceive(packet, interface):
         log_msg = f"{sender}: {message}"
 
         logging.info(log_msg)
-        ping_keys = ('hops?', 'ping', 'test', 'ack','пинг')
+        ping_keys = ('hops?', 'ping', 'test', 'тест', 'ack','пинг')
         ping_factor = max([a in message.lower() for a in ping_keys])
         
         if ping_factor:
